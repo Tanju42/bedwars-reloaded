@@ -1,5 +1,5 @@
 package io.github.yannici.bedwars.Game;
 
 public enum GameState {
-  RUNNING, WAITING, STOPPED
+  LOADING, WAITING, STARTING, RUNNING, ENDGAME, STOPPING, STOPPED
 }
