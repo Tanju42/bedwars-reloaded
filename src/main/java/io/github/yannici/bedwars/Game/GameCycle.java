@@ -341,7 +341,7 @@ public abstract class GameCycle {
           }
         }
 
-        this.getGame().toSpectator(player);
+        this.getGame().addSpectator(player);
       } else {
         if (this.game.getCycle() instanceof BungeeGameCycle) {
           this.getGame().playerLeave(player, false);

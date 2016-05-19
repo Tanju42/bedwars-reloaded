@@ -241,10 +241,10 @@ public class Game {
 
     if (this.getCycle().onGameStopping()) {
       this.setState(GameState.STOPPED);
-      
+
       BedwarsGameStopEvent stopEvent = new BedwarsGameStopEvent(this);
       Main.getInstance().getServer().getPluginManager().callEvent(stopEvent);
-      
+
       return true;
     }
 
@@ -385,7 +385,7 @@ public class Game {
     this.teams.put(team.getName(), team);
   }
 
-  public void toSpectator(Player player) {
+  public void addSpectator(Player player) {
     final Player p = player;
 
     if (!this.freePlayers.contains(player)) {
@@ -401,6 +401,16 @@ public class Game {
       storage.clean();
     }
 
+    new BukkitRunnable() {
+
+      @Override
+      public void run() {
+        Game.this.setPlayerGameMode(p);
+        Game.this.setPlayerVisibility(p);
+      }
+
+    }.runTaskLater(Main.getInstance(), 2L);
+
     final Location location = this.getPlayerTeleportLocation(p);
 
     if (!p.getLocation().getWorld().equals(location.getWorld())) {
@@ -413,22 +423,12 @@ public class Game {
             p.teleport(location);
           }
 
-        }.runTaskLater(Main.getInstance(), 10L);
+        }.runTaskLater(Main.getInstance(), 3L);
 
       } else {
         p.teleport(location);
       }
     }
-
-    new BukkitRunnable() {
-
-      @Override
-      public void run() {
-        Game.this.setPlayerGameMode(p);
-        Game.this.setPlayerVisibility(p);
-      }
-
-    }.runTaskLater(Main.getInstance(), 15L);
 
     // Leave Game (Slimeball)
     ItemStack leaveGame = new ItemStack(Material.SLIME_BALL, 1);
@@ -541,10 +541,12 @@ public class Game {
 
   public boolean playerJoins(final Player p) {
 
-    if (this.state == GameState.STOPPED
-        || (this.state == GameState.RUNNING && !Main.getInstance().spectationEnabled())) {
-      if (this.cycle instanceof BungeeGameCycle) {
-        ((BungeeGameCycle) this.cycle).sendBungeeMessage(p,
+    if ((this.getState() == GameState.LOADING)
+        || (this.getState() == GameState.RUNNING && !Main.getInstance().spectationEnabled())
+        || (this.getState() == GameState.ENDGAME) || (this.getState() == GameState.STOPPING)
+        || (this.getState() == GameState.STOPPED)) {
+      if (this.getCycle() instanceof BungeeGameCycle) {
+        ((BungeeGameCycle) this.getCycle()).sendBungeeMessage(p,
             ChatWriter.pluginMessage(ChatColor.RED + Main._l("errors.cantjoingame")));
       } else {
         p.sendMessage(ChatWriter.pluginMessage(ChatColor.RED + Main._l("errors.cantjoingame")));
@@ -552,7 +554,7 @@ public class Game {
       return false;
     }
 
-    if (!this.cycle.onPlayerJoins(p)) {
+    if (!this.getCycle().onPlayerJoins(p)) {
       return false;
     }
 
@@ -565,14 +567,11 @@ public class Game {
 
     Main.getInstance().getGameManager().addGamePlayer(p, this);
     if (Main.getInstance().statisticsEnabled()) {
-      // load statistics
       Main.getInstance().getPlayerStatisticManager().getStatistic(p);
     }
 
-    // add damager and set it to null
-    this.playerDamages.put(p, null);
+    this.getPlayerDamages().put(p, null);
 
-    // add player settings
     this.addPlayerSettings(p);
 
     new BukkitRunnable() {
@@ -585,78 +584,13 @@ public class Game {
         }
       }
 
-    }.runTaskLater(Main.getInstance(), 5L);
+    }.runTaskLater(Main.getInstance(), 1L);
 
-    if (this.state == GameState.RUNNING) {
-      this.toSpectator(p);
-      this.displayMapInfo(p);
+    if (this.state == GameState.WAITING) {
+      this.addPlayer(p);
     } else {
-
-      PlayerStorage storage = this.addPlayerStorage(p);
-      storage.store();
-      storage.clean();
-
-      if (!Main.getInstance().isBungee()) {
-        final Location location = this.getPlayerTeleportLocation(p);
-        if (!p.getLocation().equals(location)) {
-          this.getPlayerSettings(p).setTeleporting(true);
-          if (Main.getInstance().isBungee()) {
-            new BukkitRunnable() {
-
-              @Override
-              public void run() {
-                p.teleport(location);
-              }
-
-            }.runTaskLater(Main.getInstance(), 10L);
-          } else {
-            p.teleport(location);
-          }
-        }
-      }
-
-      storage.loadLobbyInventory(this);
-
-      new BukkitRunnable() {
-
-        @Override
-        public void run() {
-          Game.this.setPlayerGameMode(p);
-          Game.this.setPlayerVisibility(p);
-        }
-
-      }.runTaskLater(Main.getInstance(), 15L);
-
-      this.broadcast(ChatColor.GREEN + Main._l("lobby.playerjoin",
-          ImmutableMap.of("player", p.getDisplayName() + ChatColor.GREEN)));
-
-      if (!this.isAutobalanceEnabled()) {
-        this.freePlayers.add(p);
-      } else {
-        Team team = this.getLowestTeam();
-        team.addPlayer(p);
-      }
-
-      if (Main.getInstance().getBooleanConfig("store-game-records", true)) {
-        this.displayRecord(p);
-      }
-
-      GameLobbyCountdownRule rule = Main.getInstance().getLobbyCountdownRule();
-      if (rule == GameLobbyCountdownRule.PLAYERS_IN_GAME
-          || rule == GameLobbyCountdownRule.ENOUGH_TEAMS_AND_PLAYERS) {
-        if (rule.isRuleMet(this)) {
-          if (this.lobbyCountdown == null) {
-            this.lobbyCountdown = new GameLobbyCountdown(this);
-            this.lobbyCountdown.setRule(rule);
-            this.lobbyCountdown.runTaskTimer(Main.getInstance(), 20L, 20L);
-          }
-        } else {
-          int playersNeeded = this.getMinPlayers() - this.getPlayerAmount();
-          this.broadcast(ChatColor.GREEN + Main._l("lobby.moreplayersneeded", "count",
-              ImmutableMap.of("count", String.valueOf(playersNeeded))));
-
-        }
-      }
+      this.addSpectator(p);
+      this.displayMapInfo(p);
     }
 
     BedwarsPlayerJoinedEvent joinEvent = new BedwarsPlayerJoinedEvent(this, null, p);
@@ -665,6 +599,76 @@ public class Game {
     this.updateScoreboard();
     this.updateSigns();
     return true;
+
+  }
+
+  public void addPlayer(final Player p) {
+
+    PlayerStorage storage = this.addPlayerStorage(p);
+    storage.store();
+    storage.clean();
+
+    new BukkitRunnable() {
+
+      @Override
+      public void run() {
+        Game.this.setPlayerGameMode(p);
+        Game.this.setPlayerVisibility(p);
+      }
+
+    }.runTaskLater(Main.getInstance(), 2L);
+
+    if (!Main.getInstance().isBungee()) {
+      final Location location = this.getPlayerTeleportLocation(p);
+      if (!p.getLocation().equals(location)) {
+        this.getPlayerSettings(p).setTeleporting(true);
+        if (Main.getInstance().isBungee()) {
+          new BukkitRunnable() {
+
+            @Override
+            public void run() {
+              p.teleport(location);
+            }
+
+          }.runTaskLater(Main.getInstance(), 3L);
+        } else {
+          p.teleport(location);
+        }
+      }
+    }
+
+    storage.loadLobbyInventory(this);
+
+    this.broadcast(ChatColor.GREEN + Main._l("lobby.playerjoin",
+        ImmutableMap.of("player", p.getDisplayName() + ChatColor.GREEN)));
+
+    if (!this.isAutobalanceEnabled()) {
+      this.freePlayers.add(p);
+    } else {
+      Team team = this.getLowestTeam();
+      team.addPlayer(p);
+    }
+
+    if (Main.getInstance().getBooleanConfig("store-game-records", true)) {
+      this.displayRecord(p);
+    }
+
+    GameLobbyCountdownRule rule = Main.getInstance().getLobbyCountdownRule();
+    if (rule == GameLobbyCountdownRule.PLAYERS_IN_GAME
+        || rule == GameLobbyCountdownRule.ENOUGH_TEAMS_AND_PLAYERS) {
+      if (rule.isRuleMet(this)) {
+        if (this.lobbyCountdown == null) {
+          this.lobbyCountdown = new GameLobbyCountdown(this);
+          this.lobbyCountdown.setRule(rule);
+          this.lobbyCountdown.runTaskTimer(Main.getInstance(), 20L, 20L);
+        }
+      } else {
+        int playersNeeded = this.getMinPlayers() - this.getPlayerAmount();
+        this.broadcast(ChatColor.GREEN + Main._l("lobby.moreplayersneeded", "count",
+            ImmutableMap.of("count", String.valueOf(playersNeeded))));
+
+      }
+    }
 
   }
 

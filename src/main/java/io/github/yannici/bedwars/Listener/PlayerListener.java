@@ -647,7 +647,7 @@ public class PlayerListener extends BaseListener {
     }
 
     if (game.getState() != GameState.WAITING) {
-      if (game.isInGame(player)) {
+      if (game.isInGame(player) && !game.isSpectator(player)) {
         return;
       }
     }
