@@ -44,6 +44,7 @@ public class BungeeGameCycle extends GameCycle {
   @Override
   public void onGameEnds() {
     if (Main.getInstance().getBooleanConfig("bungeecord.full-restart", true)) {
+      this.getGame().setState(GameState.STOPPING);
       this.kickAllPlayers();
 
       this.getGame().resetRegion();
@@ -61,14 +62,14 @@ public class BungeeGameCycle extends GameCycle {
         }
       }.runTaskLater(Main.getInstance(), 70L);
     } else {
+
+      this.getGame().setState(GameState.STOPPING);
+
       // Reset scoreboard first
       this.getGame().resetScoreboard();
 
       // Kick all players
       this.kickAllPlayers();
-
-      // reset countdown prevention breaks
-      this.setEndGameRunning(false);
 
       // Reset team chests
       for (Team team : this.getGame().getTeams().values()) {
@@ -94,7 +95,7 @@ public class BungeeGameCycle extends GameCycle {
       this.bungeeSendToServer(Main.getInstance().getBungeeHub(), player, true);
     }
 
-    if (this.getGame().getState() == GameState.RUNNING && !this.getGame().isStopping()) {
+    if (this.getGame().getState() == GameState.RUNNING) {
       this.checkGameOver();
     }
   }
@@ -228,7 +229,7 @@ public class BungeeGameCycle extends GameCycle {
 
   @Override
   public void onGameOver(GameOverTask task) {
-    if (Main.getInstance().getBooleanConfig("bungeecord.endgame-in-lobby", true)) {
+    if (Main.getInstance().getBooleanConfig("endgame-in-lobby", true)) {
       final ArrayList<Player> players = new ArrayList<Player>();
       final Game game = this.getGame();
       players.addAll(this.getGame().getTeamPlayers());

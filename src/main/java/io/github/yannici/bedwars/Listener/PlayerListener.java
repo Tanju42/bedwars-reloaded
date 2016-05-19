@@ -8,8 +8,6 @@ import java.util.List;
 
 import org.bukkit.ChatColor;
 import org.bukkit.DyeColor;
-import org.bukkit.GameMode;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Sign;
@@ -127,12 +125,10 @@ public class PlayerListener extends BaseListener {
     Game game = Main.getInstance().getGameManager().getGameOfPlayer(change.getPlayer());
     if (game != null) {
       if (game.getState() == GameState.RUNNING) {
-        if (!game.getCycle().isEndGameRunning()) {
-          if (!game.getPlayerSettings(change.getPlayer()).isTeleporting()) {
-            game.playerLeave(change.getPlayer(), false);
-          } else {
-            game.getPlayerSettings(change.getPlayer()).setTeleporting(false);
-          }
+        if (!game.getPlayerSettings(change.getPlayer()).isTeleporting()) {
+          game.playerLeave(change.getPlayer(), false);
+        } else {
+          game.getPlayerSettings(change.getPlayer()).setTeleporting(false);
         }
       } else if (game.getState() == GameState.WAITING) {
         if (!game.getPlayerSettings(change.getPlayer()).isTeleporting()) {
@@ -372,14 +368,16 @@ public class PlayerListener extends BaseListener {
     if (game.getState() == GameState.RUNNING) {
       this.onIngameInventoryClick(ice, player, game);
     }
+
+    if (game.getState() == GameState.ENDGAME) {
+      this.onEndgameInventoryClick(ice, player, game);
+    }
   }
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   private void onIngameInventoryClick(InventoryClickEvent ice, Player player, Game game) {
     if (!ice.getInventory().getName().equals(Main._l("ingame.shop.name"))) {
-      if (game.isSpectator(player)
-          || (game.getCycle() instanceof BungeeGameCycle && game.getCycle().isEndGameRunning()
-              && Main.getInstance().getBooleanConfig("bungeecord.endgame-in-lobby", true))) {
+      if (game.isSpectator(player)) {
 
         ItemStack clickedStack = ice.getCurrentItem();
         if (clickedStack == null) {
@@ -459,6 +457,30 @@ public class PlayerListener extends BaseListener {
     }
   }
 
+  private void onEndgameInventoryClick(InventoryClickEvent ice, Player player, Game game) {
+    if (!ice.getInventory().getName().equals(Main._l("ingame.shop.name"))) {
+      if (game.isSpectator(player)
+          || Main.getInstance().getBooleanConfig("endgame-in-lobby", true)) {
+
+        ItemStack clickedStack = ice.getCurrentItem();
+        if (clickedStack == null) {
+          return;
+        }
+
+        Material clickedMat = ice.getCurrentItem().getType();
+        if (clickedMat.equals(Material.SLIME_BALL)) {
+          game.playerLeave(player, false);
+        }
+
+        if (clickedMat.equals(Material.COMPASS)) {
+          game.openSpectatorCompass(player);
+        }
+      }
+      return;
+    }
+    ice.setCancelled(true);
+  }
+
   private String getChatFormat(String format, Team team, boolean isSpectator, boolean all) {
     String form = format;
 
@@ -466,8 +488,12 @@ public class PlayerListener extends BaseListener {
       form = form.replace("$all$", Main._l("ingame.all") + ChatColor.RESET);
     }
 
-    form = form.replace("$player$",
-        ((!isSpectator && team != null) ? team.getChatColor() : "") + "%1$s" + ChatColor.RESET);
+    if (team != null) {
+      form = form.replace("$player$", team.getChatColor() + "%1$s" + ChatColor.RESET);
+    } else {
+      form = form.replace("$player$", "%1$s" + ChatColor.RESET);
+    }
+
     form = form.replace("$msg$", "%2$s");
 
     if (isSpectator) {
@@ -575,14 +601,14 @@ public class PlayerListener extends BaseListener {
       }
     }
 
-    if (!toAllPrefix.equals("") || isSpectator || (game.getCycle().isEndGameRunning()
+    if (!toAllPrefix.equals("") || isSpectator || (game.getState() == GameState.ENDGAME
         && Main.getInstance().getBooleanConfig("global-chat-after-end", true))) {
       boolean seperateSpectatorChat =
           Main.getInstance().getBooleanConfig("seperate-spectator-chat", false);
 
       message = message.trim();
       String format = null;
-      if (!isSpectator && !(game.getCycle().isEndGameRunning()
+      if (!isSpectator && !(game.getState() == GameState.ENDGAME
           && Main.getInstance().getBooleanConfig("global-chat-after-end", true))) {
         ce.setMessage(message.substring(toAllPrefix.length(), message.length()).trim());
         format = this.getChatFormat(Main.getInstance().getStringConfig("ingame-chatformat-all",
@@ -605,7 +631,7 @@ public class PlayerListener extends BaseListener {
             continue;
           }
 
-          if (!seperateSpectatorChat || (game.getCycle().isEndGameRunning()
+          if (!seperateSpectatorChat || (game.getState() == GameState.ENDGAME
               && Main.getInstance().getBooleanConfig("global-chat-after-end", true))) {
             continue;
           }
@@ -819,7 +845,7 @@ public class PlayerListener extends BaseListener {
     Material interactingMaterial = pie.getMaterial();
     Block clickedBlock = pie.getClickedBlock();
 
-    if (g.getState() == GameState.RUNNING) {
+    if (g.getState() == GameState.RUNNING || g.getState() == GameState.ENDGAME) {
       if (pie.getAction() == Action.PHYSICAL) {
         if (clickedBlock != null && (clickedBlock.getType() == Material.WHEAT
             || clickedBlock.getType() == Material.SOIL)) {
@@ -843,9 +869,8 @@ public class PlayerListener extends BaseListener {
         }
       }
 
-      if (g.isSpectator(player)
-          || (g.getCycle() instanceof BungeeGameCycle && g.getCycle().isEndGameRunning()
-              && Main.getInstance().getBooleanConfig("bungeecord.endgame-in-lobby", true))) {
+      if (g.isSpectator(player) || (g.getState() == GameState.ENDGAME
+          && Main.getInstance().getBooleanConfig("endgame-in-lobby", true))) {
         if (interactingMaterial == Material.SLIME_BALL) {
           g.playerLeave(player, false);
           return;
@@ -855,30 +880,6 @@ public class PlayerListener extends BaseListener {
           g.openSpectatorCompass(player);
           pie.setCancelled(true);
           return;
-        }
-      }
-
-      // Spectators want to block
-      if (clickedBlock != null) {
-        try {
-          GameMode.valueOf("SPECTATOR");
-        } catch (Exception ex) {
-          for (Player p : g.getFreePlayers()) {
-            if (!g.getRegion().isInRegion(p.getLocation())) {
-              continue;
-            }
-
-            if (pie.getClickedBlock().getLocation().distance(p.getLocation()) < 2) {
-              Location oldLocation = p.getLocation();
-              if (oldLocation.getY() >= pie.getClickedBlock().getLocation().getY()) {
-                oldLocation.setY(oldLocation.getY() + 2);
-              } else {
-                oldLocation.setY(oldLocation.getY() - 2);
-              }
-
-              p.teleport(oldLocation);
-            }
-          }
         }
       }
 
@@ -1118,7 +1119,7 @@ public class PlayerListener extends BaseListener {
         }
       }
 
-      if (!g.getCycle().isEndGameRunning()) {
+      if (g.getState() != GameState.ENDGAME) {
         return;
       } else if (ede.getCause() == DamageCause.VOID) {
         p.teleport(g.getPlayerTeam(p).getSpawnLocation());

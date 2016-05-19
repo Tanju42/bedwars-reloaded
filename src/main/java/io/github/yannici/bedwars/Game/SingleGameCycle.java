@@ -4,7 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -22,6 +26,9 @@ public class SingleGameCycle extends GameCycle {
 
   @Override
   public void onGameEnds() {
+
+    this.getGame().setState(GameState.STOPPING);
+
     // Reset scoreboard first
     this.getGame().resetScoreboard();
 
@@ -35,9 +42,6 @@ public class SingleGameCycle extends GameCycle {
     for (Player p : freePlayers) {
       this.kickPlayer(p, true);
     }
-
-    // reset countdown prevention breaks
-    this.setEndGameRunning(false);
 
     // Reset team chests
     for (Team team : this.getGame().getTeams().values()) {
@@ -136,8 +140,7 @@ public class SingleGameCycle extends GameCycle {
       player.teleport(storage.getLeft());
     }
 
-    if (this.getGame().getState() == GameState.RUNNING && !this.getGame().isStopping()
-        && !this.getGame().isSpectator(player)) {
+    if (this.getGame().getState() == GameState.RUNNING && !this.getGame().isSpectator(player)) {
       this.checkGameOver();
     }
   }
@@ -190,6 +193,41 @@ public class SingleGameCycle extends GameCycle {
 
   @Override
   public void onGameOver(GameOverTask task) {
+    if (Main.getInstance().getBooleanConfig("endgame-in-lobby", true)) {
+      final ArrayList<Player> players = new ArrayList<Player>();
+      final Game game = this.getGame();
+      players.addAll(this.getGame().getTeamPlayers());
+      players.addAll(this.getGame().getFreePlayers());
+      for (Player player : players) {
+
+        if (!player.getWorld().equals(this.getGame().getLobby().getWorld())) {
+          game.getPlayerSettings(player).setTeleporting(true);
+          player.teleport(this.getGame().getLobby());
+          game.getPlayerStorage(player).clean();
+        }
+      }
+
+      new BukkitRunnable() {
+        @Override
+        public void run() {
+          for (Player player : players) {
+            game.setPlayerGameMode(player);
+            game.setPlayerVisibility(player);
+
+            if (!player.getInventory().contains(Material.SLIME_BALL)) {
+              // Leave Game (Slimeball)
+              ItemStack leaveGame = new ItemStack(Material.SLIME_BALL, 1);
+              ItemMeta im = leaveGame.getItemMeta();
+              im.setDisplayName(Main._l("lobby.leavegame"));
+              leaveGame.setItemMeta(im);
+              player.getInventory().setItem(8, leaveGame);
+              player.updateInventory();
+            }
+          }
+        }
+      }.runTaskLater(Main.getInstance(), 20L);
+    }
+
     if (task.getCounter() == task.getStartCount() && task.getWinner() != null) {
       this.getGame().broadcast(ChatColor.GOLD + Main._l("ingame.teamwon",
           ImmutableMap.of("team", task.getWinner().getDisplayName() + ChatColor.GOLD)));

@@ -169,7 +169,9 @@ sign:
     players: "Spieler"
     gamestate:
         stopped: "&4Gestoppt!"
+        stopping: "&4Gestoppt!"
         waiting: "&aWarten ..."
+        endgame: "&aEndet ..."
         running: "&9Gestartet!"
         full: "Voll!"
 stats:

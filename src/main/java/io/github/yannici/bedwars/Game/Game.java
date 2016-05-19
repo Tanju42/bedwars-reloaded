@@ -105,8 +105,6 @@ public class Game {
   private Location mainLobby = null;
   private HashMap<Location, GameJoinSign> joinSigns = null;
   private int timeLeft = 0;
-  private boolean isOver = false;
-  private boolean isStopping = false;
   private Location hologramLocation = null;
   private boolean autobalance = false;
   private List<String> recordHolders = null;
@@ -141,7 +139,6 @@ public class Game {
     this.lobbyCountdown = null;
     this.joinSigns = new HashMap<Location, GameJoinSign>();
     this.timeLeft = Main.getInstance().getMaxLength();
-    this.isOver = false;
     this.newItemShops = new HashMap<Player, NewItemShop>();
     this.oldItemShopPlayers = new ArrayList<Player>();
     this.respawnProtections = new HashMap<Player, RespawnProtectionRunnable>();
@@ -326,8 +323,8 @@ public class Game {
     leaveGame.setItemMeta(im);
     p.getInventory().setItem(8, leaveGame);
 
-    if (this.getCycle() instanceof BungeeGameCycle && this.getCycle().isEndGameRunning()
-        && Main.getInstance().getBooleanConfig("bungeecord.endgame-in-lobby", true)) {
+    if (this.getState() == GameState.ENDGAME
+        && Main.getInstance().getBooleanConfig("endgame-in-lobby", true)) {
       p.updateInventory();
       return;
     }
@@ -674,7 +671,7 @@ public class Game {
 
   private Team getLowestTeam() {
     Team lowest = null;
-    for (Team team : this.teams.values()) {
+    for (Team team : this.getTeams().values()) {
       if (lowest == null) {
         lowest = team;
         continue;
@@ -755,16 +752,14 @@ public class Game {
   }
 
   public Location getPlayerTeleportLocation(Player player) {
-    if (this.isSpectator(player)
-        && !(this.getCycle() instanceof BungeeGameCycle && this.getCycle().isEndGameRunning()
-            && Main.getInstance().getBooleanConfig("bungeecord.endgame-in-lobby", true))) {
+    if (this.isSpectator(player) && !(this.getState() == GameState.ENDGAME
+        && Main.getInstance().getBooleanConfig("endgame-in-lobby", true))) {
       return ((Team) this.teams.values().toArray()[Utils.randInt(0, this.teams.size() - 1)])
           .getSpawnLocation();
     }
 
-    if (this.getPlayerTeam(player) != null
-        && !(this.getCycle() instanceof BungeeGameCycle && this.getCycle().isEndGameRunning()
-            && Main.getInstance().getBooleanConfig("bungeecord.endgame-in-lobby", true))) {
+    if (this.getPlayerTeam(player) != null && !(this.getState() == GameState.ENDGAME
+        && Main.getInstance().getBooleanConfig("endgame-in-lobby", true))) {
       return this.getPlayerTeam(player).getSpawnLocation();
     }
 
@@ -937,8 +932,8 @@ public class Game {
     return this.freePlayers.contains(p);
   }
 
-  public Team isOver() {
-    if (this.isOver || this.state != GameState.RUNNING) {
+  public Team getLastTeam() {
+    if (this.getState() == GameState.ENDGAME) {
       return null;
     }
 
@@ -969,10 +964,6 @@ public class Game {
     }
   }
 
-  public boolean isOverSet() {
-    return this.isOver;
-  }
-
   public boolean isProtected(Player player) {
     return (this.respawnProtections.containsKey(player) && this.getState() == GameState.RUNNING);
   }
@@ -995,10 +986,6 @@ public class Game {
     this.shopCategories = MerchantCategory.loadCategories(Main.getInstance().getShopConfig());
     this.orderedShopCategories = this.loadOrderedItemShopCategories();
   }
-
-  /*
-   * GETTER / SETTER
-   */
 
   private List<MerchantCategory> loadOrderedItemShopCategories() {
     List<MerchantCategory> list = new ArrayList<MerchantCategory>(this.shopCategories.values());
@@ -1028,7 +1015,7 @@ public class Game {
   }
 
   public void moveFreePlayersToTeam() {
-    for (Player player : this.freePlayers) {
+    for (Player player : this.getFreePlayers()) {
       Team lowest = this.getLowestTeam();
       lowest.addPlayer(player);
     }
@@ -1081,8 +1068,7 @@ public class Game {
 
   public boolean playerJoins(final Player p) {
 
-    if ((this.getState() == GameState.LOADING)
-        || (this.getState() == GameState.RUNNING && !Main.getInstance().spectationEnabled())
+    if ((this.getState() == GameState.RUNNING && !Main.getInstance().spectationEnabled())
         || (this.getState() == GameState.ENDGAME) || (this.getState() == GameState.STOPPING)
         || (this.getState() == GameState.STOPPED)) {
       if (this.getCycle() instanceof BungeeGameCycle) {
@@ -1196,36 +1182,31 @@ public class Game {
       statistic = Main.getInstance().getPlayerStatisticManager().getStatistic(p);
     }
 
-    if (this.isSpectator(p)) {
-      if (!this.getCycle().isEndGameRunning()) {
-        for (Player player : this.getPlayers()) {
-          if (player.equals(p)) {
-            continue;
-          }
-
-          player.showPlayer(p);
-          p.showPlayer(player);
+    if (this.isSpectator(p) && this.getState() != GameState.ENDGAME) {
+      for (Player player : this.getPlayers()) {
+        if (player.equals(p)) {
+          continue;
         }
-      }
-    } else {
-      if (this.state == GameState.RUNNING && !this.getCycle().isEndGameRunning()) {
-        if (!team.isDead(this) && !p.isDead()) {
-          if (Main.getInstance().statisticsEnabled()) {
-            if (Main.getInstance().getBooleanConfig("statistics.player-leave-kills", false)
-                && this.getPlayerDamager(p) != null) {
-              statistic.setDeaths(statistic.getDeaths() + 1);
-              statistic
-                  .addCurrentScore(Main.getInstance().getIntConfig("statistics.scores.die", 0));
 
-              PlayerStatistic killerPlayer = Main.getInstance().getPlayerStatisticManager()
-                  .getStatistic(this.getPlayerDamager(p));
-              killerPlayer.setKills(killerPlayer.getKills() + 1);
-              killerPlayer
-                  .addCurrentScore(Main.getInstance().getIntConfig("statistics.scores.kill", 10));
-            }
-            statistic.setLoses(statistic.getLoses() + 1);
-            statistic.addCurrentScore(Main.getInstance().getIntConfig("statistics.scores.lose", 0));
+        player.showPlayer(p);
+        p.showPlayer(player);
+      }
+    } else if (this.state == GameState.RUNNING) {
+      if (!team.isDead(this) && !p.isDead()) {
+        if (Main.getInstance().statisticsEnabled()) {
+          if (Main.getInstance().getBooleanConfig("statistics.player-leave-kills", false)
+              && this.getPlayerDamager(p) != null) {
+            statistic.setDeaths(statistic.getDeaths() + 1);
+            statistic.addCurrentScore(Main.getInstance().getIntConfig("statistics.scores.die", 0));
+
+            PlayerStatistic killerPlayer = Main.getInstance().getPlayerStatisticManager()
+                .getStatistic(this.getPlayerDamager(p));
+            killerPlayer.setKills(killerPlayer.getKills() + 1);
+            killerPlayer
+                .addCurrentScore(Main.getInstance().getIntConfig("statistics.scores.kill", 10));
           }
+          statistic.setLoses(statistic.getLoses() + 1);
+          statistic.addCurrentScore(Main.getInstance().getIntConfig("statistics.scores.lose", 0));
         }
       }
     }
@@ -1235,16 +1216,17 @@ public class Game {
     }
 
     this.playerDamages.remove(p);
-    if (team != null && Main.getInstance().getGameManager().getGameOfPlayer(p) != null
-        && !Main.getInstance().getGameManager().getGameOfPlayer(p).isSpectator(p)) {
-      team.removePlayer(p);
-      if (kicked) {
-        this.broadcast(ChatColor.RED + Main._l("ingame.player.kicked", ImmutableMap.of("player",
-            Game.getPlayerWithTeamString(p, team, ChatColor.RED) + ChatColor.RED)));
-      } else {
-        this.broadcast(ChatColor.RED + Main._l("ingame.player.left", ImmutableMap.of("player",
-            Game.getPlayerWithTeamString(p, team, ChatColor.RED) + ChatColor.RED)));
+    if (team != null && !this.isSpectator(p)) {
+      if (this.state != GameState.ENDGAME) {
+        if (kicked) {
+          this.broadcast(ChatColor.RED + Main._l("ingame.player.kicked", ImmutableMap.of("player",
+              Game.getPlayerWithTeamString(p, team, ChatColor.RED) + ChatColor.RED)));
+        } else {
+          this.broadcast(ChatColor.RED + Main._l("ingame.player.left", ImmutableMap.of("player",
+              Game.getPlayerWithTeamString(p, team, ChatColor.RED) + ChatColor.RED)));
+        }
       }
+      team.removePlayer(p);
     }
 
     Main.getInstance().getGameManager().removeGamePlayer(p);
@@ -1384,7 +1366,6 @@ public class Game {
       sender.sendMessage(ChatWriter.pluginMessage(ChatColor.GREEN + Main._l("success.gamerun")));
     }
 
-    this.isStopping = false;
     this.state = GameState.WAITING;
     this.updateSigns();
     return true;
@@ -1504,9 +1485,8 @@ public class Game {
   }
 
   public void setPlayerGameMode(Player player) {
-    if (this.isSpectator(player)
-        && !(this.getCycle() instanceof BungeeGameCycle && this.getCycle().isEndGameRunning()
-            && Main.getInstance().getBooleanConfig("bungeecord.endgame-in-lobby", true))) {
+    if (this.isSpectator(player) && !(this.getState() == GameState.ENDGAME
+        && Main.getInstance().getBooleanConfig("endgame-in-lobby", true))) {
 
       player.setAllowFlight(true);
       player.setFlying(true);
@@ -1530,9 +1510,8 @@ public class Game {
     ArrayList<Player> players = new ArrayList<Player>();
     players.addAll(this.getPlayers());
 
-    if (this.state == GameState.RUNNING
-        && !(this.getCycle() instanceof BungeeGameCycle && this.getCycle().isEndGameRunning()
-            && Main.getInstance().getBooleanConfig("bungeecord.endgame-in-lobby", true))) {
+    if (this.state == GameState.RUNNING || !(this.getState() == GameState.ENDGAME
+        && Main.getInstance().getBooleanConfig("endgame-in-lobby", true))) {
       if (this.isSpectator(player)) {
         if (player.getGameMode().equals(GameMode.SURVIVAL)) {
           for (Player playerInGame : players) {
@@ -1571,8 +1550,16 @@ public class Game {
   }
 
   public void setState(GameState state) {
+    Main.getInstance().getServer().getConsoleSender()
+        .sendMessage("Game state is now: " + state.toString());
     this.state = state;
     this.updateSigns();
+  }
+
+  public GameState getState() {
+    //Main.getInstance().getServer().getConsoleSender()
+    //    .sendMessage("Game state is: " + state.toString());
+    return this.state;
   }
 
   public boolean start(CommandSender sender) {
@@ -1590,7 +1577,6 @@ public class Game {
     }
 
     if (this.getCycle().onGameStarting()) {
-      this.setState(GameState.RUNNING);
       return true;
     }
 
@@ -1614,7 +1600,7 @@ public class Game {
       public void run() {
         Game.this.updateScoreboardTimer();
         if (Game.this.timeLeft == 0) {
-          Game.this.isOver = true;
+          Game.this.setState(GameState.ENDGAME);
           Game.this.getCycle().checkGameOver();
           this.cancel();
           return;

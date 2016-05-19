@@ -136,7 +136,7 @@ public class TNTSheep extends SpecialItem {
       public void run() {
         final TNTSheep that = TNTSheep.this;
 
-        if (that.game.isStopping() || that.game.getState() != GameState.RUNNING) {
+        if (that.game.getState() != GameState.RUNNING) {
           return;
         }
 

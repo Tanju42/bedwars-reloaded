@@ -28,7 +28,6 @@ import io.github.yannici.bedwars.Statistics.PlayerStatistic;
 public abstract class GameCycle {
 
   private Game game = null;
-  private boolean endGameRunning = false;
 
   public GameCycle(Game game) {
     this.game = game;
@@ -41,10 +40,6 @@ public abstract class GameCycle {
   public boolean onGameStarting() {
 
     Game game = this.getGame();
-
-    game.setState(GameState.STARTING);
-
-    game.setOver(false);
     game.broadcast(ChatColor.GREEN + Main._l("ingame.gamestarting"));
 
     // load shop categories again (if shop was changed)
@@ -63,6 +58,7 @@ public abstract class GameCycle {
 
     game.teleportPlayersToTeamSpawn();
 
+    game.setState(GameState.RUNNING);
 
     game.updateScoreboard();
 
@@ -83,14 +79,12 @@ public abstract class GameCycle {
 
     return true;
   }
-  
+
   public boolean onGameStopping() {
 
     Game game = this.getGame();
 
     game.setState(GameState.STOPPING);
-
-    game.setStopping(true);
 
     game.stopWorkers();
     game.clearProtections();
@@ -102,7 +96,7 @@ public abstract class GameCycle {
     }
     game.resetRegion();
 
-    game.setStopping(false);
+    game.setState(GameState.WAITING);
 
     return true;
   }
@@ -183,7 +177,7 @@ public abstract class GameCycle {
     }
 
     this.getGame().stopWorkers();
-    this.setEndGameRunning(true);
+    this.getGame().setState(GameState.ENDGAME);
 
     // new record?
     boolean storeRecords = Main.getInstance().getBooleanConfig("store-game-records", true);
@@ -299,14 +293,14 @@ public abstract class GameCycle {
       return;
     }
 
-    Team winner = this.getGame().isOver();
+    Team winner = this.getGame().getLastTeam();
     if (winner != null) {
-      if (this.isEndGameRunning() == false) {
+      if (this.getGame().getState() == GameState.RUNNING) {
         this.runGameOver(winner);
       }
     } else {
-      if ((this.getGame().getTeamPlayers().size() == 0 || this.getGame().isOverSet())
-          && this.isEndGameRunning() == false) {
+      if (this.getGame().getTeamPlayers().size() == 0
+          || this.getGame().getState() == GameState.ENDGAME) {
         this.runGameOver(null);
       }
     }
@@ -388,7 +382,7 @@ public abstract class GameCycle {
   }
 
   public void onPlayerDies(Player player, Player killer) {
-    if (this.isEndGameRunning()) {
+    if (this.getGame().getState() == GameState.ENDGAME) {
       return;
     }
 
@@ -495,14 +489,6 @@ public abstract class GameCycle {
       this.getGame().broadcast(ChatColor.RED + Main._l("ingame.team-dead", ImmutableMap.of("team",
           deathTeam.getChatColor() + deathTeam.getDisplayName() + ChatColor.RED)));
     }
-  }
-
-  public void setEndGameRunning(boolean running) {
-    this.endGameRunning = running;
-  }
-
-  public boolean isEndGameRunning() {
-    return this.endGameRunning;
   }
 
 }

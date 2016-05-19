@@ -49,7 +49,7 @@ public class TNTSheepListener implements Listener {
       return;
     }
 
-    if (game.getState() != GameState.RUNNING && !game.isStopping()) {
+    if (game.getState() != GameState.RUNNING) {
       return;
     }
 
