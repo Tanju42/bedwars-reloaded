@@ -38,7 +38,7 @@ public class GameLobbyCountdown extends BukkitRunnable {
     float xpPerLevel = 1.0F / this.lobbytime;
 
     if (this.game.getState() != GameState.WAITING) {
-      this.game.setGameLobbyCountdown(null);
+      this.game.setLobbyCountdown(null);
       this.cancel();
       return;
     }
@@ -86,7 +86,7 @@ public class GameLobbyCountdown extends BukkitRunnable {
         p.setExp(0.0F);
       }
 
-      this.game.setGameLobbyCountdown(null);
+      this.game.setLobbyCountdown(null);
       this.cancel();
     }
 
@@ -133,7 +133,7 @@ public class GameLobbyCountdown extends BukkitRunnable {
     }
 
     if (this.counter == 0) {
-      this.game.setGameLobbyCountdown(null);
+      this.game.setLobbyCountdown(null);
       this.cancel();
       for (Player player : players) {
         player.playSound(player.getLocation(),
