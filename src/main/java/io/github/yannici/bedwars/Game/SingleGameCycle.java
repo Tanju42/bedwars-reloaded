@@ -21,11 +21,6 @@ public class SingleGameCycle extends GameCycle {
   }
 
   @Override
-  public void onGameStart() {
-    // Reset on game end
-  }
-
-  @Override
   public void onGameEnds() {
     // Reset scoreboard first
     this.getGame().resetScoreboard();

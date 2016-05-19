@@ -28,11 +28,6 @@ public class BungeeGameCycle extends GameCycle {
     super(game);
   }
 
-  @Override
-  public void onGameStart() {
-    // do nothing, world will be reseted on restarting
-  }
-
   private void kickAllPlayers() {
     for (Player player : this.getGame().getTeamPlayers()) {
       for (Player freePlayer : this.getGame().getFreePlayers()) {

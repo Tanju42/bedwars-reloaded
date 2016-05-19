@@ -16,6 +16,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import com.google.common.collect.ImmutableMap;
 
+import io.github.yannici.bedwars.ChatWriter;
 import io.github.yannici.bedwars.Main;
 import io.github.yannici.bedwars.Utils;
 import io.github.yannici.bedwars.Events.BedwarsGameOverEvent;
@@ -37,7 +38,74 @@ public abstract class GameCycle {
     return game;
   }
 
-  public abstract void onGameStart();
+  public boolean onGameStarting() {
+
+    Game game = this.getGame();
+
+    game.setState(GameState.STARTING);
+
+    game.setOver(false);
+    game.broadcast(ChatColor.GREEN + Main._l("ingame.gamestarting"));
+
+    // load shop categories again (if shop was changed)
+    game.loadItemShopCategories();
+
+    game.getRunningTasks().clear();
+    game.cleanUsersInventory();
+    game.clearProtections();
+    game.moveFreePlayersToTeam();
+    game.makeTeamsReady();
+
+    game.startRessourceSpawners();
+
+    // Update world time before game starts
+    game.getRegion().getWorld().setTime(game.getTime());
+
+    game.teleportPlayersToTeamSpawn();
+
+
+    game.updateScoreboard();
+
+    if (Main.getInstance().getBooleanConfig("store-game-records", true)) {
+      game.displayRecord();
+    }
+
+    game.startTimerCountdown();
+
+    if (Main.getInstance().getBooleanConfig("titles.map.enabled", false)) {
+      game.displayMapInfo();
+    }
+
+    if (Main.getInstance().getBooleanConfig("global-messages", true)) {
+      Main.getInstance().getServer().broadcastMessage(ChatWriter.pluginMessage(ChatColor.GREEN
+          + Main._l("ingame.gamestarted", ImmutableMap.of("game", game.getRegion().getName()))));
+    }
+
+    return true;
+  }
+  
+  public boolean onGameStopping() {
+
+    Game game = this.getGame();
+
+    game.setState(GameState.STOPPING);
+
+    game.setStopping(true);
+
+    game.stopWorkers();
+    game.clearProtections();
+
+    try {
+      game.kickAllPlayers();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    game.resetRegion();
+
+    game.setStopping(false);
+
+    return true;
+  }
 
   public abstract void onGameEnds();
 

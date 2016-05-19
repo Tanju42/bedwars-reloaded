@@ -44,6 +44,7 @@ import io.github.yannici.bedwars.ChatWriter;
 import io.github.yannici.bedwars.Main;
 import io.github.yannici.bedwars.Utils;
 import io.github.yannici.bedwars.Events.BedwarsGameStartEvent;
+import io.github.yannici.bedwars.Events.BedwarsGameStopEvent;
 import io.github.yannici.bedwars.Events.BedwarsPlayerJoinEvent;
 import io.github.yannici.bedwars.Events.BedwarsPlayerJoinedEvent;
 import io.github.yannici.bedwars.Events.BedwarsPlayerLeaveEvent;
@@ -225,46 +226,12 @@ public class Game {
       return false;
     }
 
-    this.isOver = false;
-    this.broadcast(ChatColor.GREEN + Main._l("ingame.gamestarting"));
-
-    // load shop categories again (if shop was changed)
-    this.loadItemShopCategories();
-
-    this.runningTasks.clear();
-    this.cleanUsersInventory();
-    this.clearProtections();
-    this.moveFreePlayersToTeam();
-    this.makeTeamsReady();
-
-    this.cycle.onGameStart();
-    this.startRessourceSpawners();
-
-    // Update world time before game starts
-    this.getRegion().getWorld().setTime(this.time);
-
-    this.teleportPlayersToTeamSpawn();
-
-    this.state = GameState.RUNNING;
-    this.updateScoreboard();
-
-    if (Main.getInstance().getBooleanConfig("store-game-records", true)) {
-      this.displayRecord();
+    if (this.getCycle().onGameStarting()) {
+      this.setState(GameState.RUNNING);
+      return true;
     }
 
-    this.startTimerCountdown();
-
-    if (Main.getInstance().getBooleanConfig("titles.map.enabled", false)) {
-      this.displayMapInfo();
-    }
-
-    this.updateSigns();
-
-    if (Main.getInstance().getBooleanConfig("global-messages", true)) {
-      Main.getInstance().getServer().broadcastMessage(ChatWriter.pluginMessage(ChatColor.GREEN
-          + Main._l("ingame.gamestarted", ImmutableMap.of("game", this.getRegion().getName()))));
-    }
-    return true;
+    return false;
   }
 
   public boolean stop() {
@@ -272,22 +239,16 @@ public class Game {
       return false;
     }
 
-    this.isStopping = true;
-
-    this.stopWorkers();
-    this.clearProtections();
-
-    try {
-      this.kickAllPlayers();
-    } catch (Exception e) {
-      e.printStackTrace();
+    if (this.getCycle().onGameStopping()) {
+      this.setState(GameState.STOPPED);
+      
+      BedwarsGameStopEvent stopEvent = new BedwarsGameStopEvent(this);
+      Main.getInstance().getServer().getPluginManager().callEvent(stopEvent);
+      
+      return true;
     }
-    this.resetRegion();
-    this.state = GameState.STOPPED;
-    this.updateSigns();
 
-    this.isStopping = false;
-    return true;
+    return false;
   }
 
   public boolean isInGame(Player p) {
@@ -1384,13 +1345,13 @@ public class Game {
   }
 
   public Material getTargetMaterial() {
-    if (this.getTargetMaterial() == null) {
+    if (this.targetMaterial == null) {
       return Utils.getMaterialByConfig("game-block", Material.BED_BLOCK);
     }
 
-    return this.getTargetMaterial();
+    return this.targetMaterial;
   }
-  
+
   public boolean isUsingOldShop(Player player) {
     return (this.getOldItemShopPlayers().contains(player));
   }
@@ -1548,7 +1509,7 @@ public class Game {
    * PRIVATE
    */
 
-  private void displayMapInfo() {
+  public void displayMapInfo() {
     for (Player player : this.getPlayers()) {
       this.displayMapInfo(player);
     }
@@ -1588,7 +1549,7 @@ public class Game {
     }
   }
 
-  private void displayRecord() {
+  public void displayRecord() {
     for (Player player : this.getPlayers()) {
       this.displayRecord(player);
     }
@@ -1616,7 +1577,7 @@ public class Game {
     }
   }
 
-  private void makeTeamsReady() {
+  public void makeTeamsReady() {
     this.playingTeams.clear();
 
     for (Team team : this.teams.values()) {
@@ -1637,7 +1598,7 @@ public class Game {
     this.updateScoreboard();
   }
 
-  private void cleanUsersInventory() {
+  public void cleanUsersInventory() {
     for (PlayerStorage storage : this.playerStorages.values()) {
       storage.clean();
     }
@@ -1707,7 +1668,7 @@ public class Game {
     this.updateSigns();
   }
 
-  private void startRessourceSpawners() {
+  public void startRessourceSpawners() {
     for (RessourceSpawner rs : this.getRessourceSpawner()) {
       rs.setGame(this);
       this.runningTasks.add(Main.getInstance().getServer().getScheduler().runTaskTimer(
@@ -1715,7 +1676,7 @@ public class Game {
     }
   }
 
-  private void teleportPlayersToTeamSpawn() {
+  void teleportPlayersToTeamSpawn() {
     for (Team team : this.teams.values()) {
       for (Player player : team.getPlayers()) {
         if (!player.getWorld().equals(team.getSpawnLocation().getWorld())) {
@@ -1747,7 +1708,7 @@ public class Game {
     return lowest;
   }
 
-  private void moveFreePlayersToTeam() {
+  public void moveFreePlayersToTeam() {
     for (Player player : this.freePlayers) {
       Team lowest = this.getLowestTeam();
       lowest.addPlayer(player);
@@ -1855,7 +1816,7 @@ public class Game {
         ImmutableMap.of("team", team.getDisplayName() + ChatColor.GREEN))));
   }
 
-  private void startTimerCountdown() {
+  public void startTimerCountdown() {
     this.timeLeft = Main.getInstance().getMaxLength();
     this.length = Main.getInstance().getMaxLength();
     BukkitRunnable task = new BukkitRunnable() {
