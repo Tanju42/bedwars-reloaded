@@ -53,7 +53,9 @@ import io.github.yannici.bedwars.Shop.Specials.SpecialItem;
 import io.github.yannici.bedwars.Statistics.PlayerStatistic;
 import io.github.yannici.bedwars.Villager.MerchantCategory;
 import io.github.yannici.bedwars.Villager.MerchantCategoryComparator;
+import lombok.Data;
 
+@Data
 public class Game {
 
   private String name = null;
@@ -1345,32 +1347,8 @@ public class Game {
    * GETTER / SETTER
    */
 
-  public void setTime(int time) {
-    this.time = time;
-  }
-
-  public int getTime() {
-    return this.time;
-  }
-
-  public int getTimeLeft() {
-    return this.timeLeft;
-  }
-
-  public void setRecord(int int1) {
-    this.record = int1;
-  }
-
-  public int getRecord() {
-    return this.record;
-  }
-
   public List<SpecialItem> getSpecialItems() {
     return this.currentSpecials;
-  }
-
-  public Map<Player, Player> getPlayerDamages() {
-    return this.playerDamages;
   }
 
   public Player getPlayerDamager(Player p) {
@@ -1405,24 +1383,8 @@ public class Game {
     return rpr;
   }
 
-  public List<String> getRecordHolders() {
-    return this.recordHolders;
-  }
-
   public void addRecordHolder(String holder) {
     this.recordHolders.add(holder);
-  }
-
-  public boolean isStopping() {
-    return this.isStopping;
-  }
-
-  public String getBuilder() {
-    return this.builder;
-  }
-
-  public void setBuilder(String builder) {
-    this.builder = builder;
   }
 
   public Material getTargetMaterial() {
@@ -1431,10 +1393,6 @@ public class Game {
     }
 
     return this.targetMaterial;
-  }
-
-  public void setTargetMaterial(Material targetMaterial) {
-    this.targetMaterial = targetMaterial;
   }
 
   public List<MerchantCategory> getOrderedItemShopCategories() {
@@ -1465,10 +1423,6 @@ public class Game {
     return this.joinSigns;
   }
 
-  public GameCycle getCycle() {
-    return this.cycle;
-  }
-
   public void setItemShopCategories(HashMap<Material, MerchantCategory> cats) {
     this.itemshop = cats;
   }
@@ -1489,10 +1443,6 @@ public class Game {
 
   public HashMap<String, Team> getTeams() {
     return this.teams;
-  }
-
-  public Region getRegion() {
-    return this.region;
   }
 
   public ArrayList<Player> getTeamPlayers() {
@@ -1532,25 +1482,9 @@ public class Game {
     return players;
   }
 
-  public int getMinPlayers() {
-    return this.minPlayers;
-  }
-
-  public GameState getState() {
-    return state;
-  }
-
   public void setState(GameState state) {
     this.state = state;
     this.updateSigns();
-  }
-
-  public String getName() {
-    return this.name;
-  }
-
-  public void setRegion(Region region) {
-    this.region = region;
   }
 
   public void setMinPlayers(int players) {
@@ -1560,10 +1494,6 @@ public class Game {
     }
 
     this.minPlayers = players;
-  }
-
-  public Location getLobby() {
-    return this.lobby;
   }
 
   public void setLobby(Player sender) {
@@ -1597,10 +1527,6 @@ public class Game {
     return this.teams.get(name);
   }
 
-  public List<Team> getPlayingTeams() {
-    return this.playingTeams;
-  }
-
   public void removePlayerSettings(Player player) {
     this.playerSettings.remove(player);
   }
@@ -1617,28 +1543,12 @@ public class Game {
     return this.storages.get(p);
   }
 
-  public void setConfig(YamlConfiguration config) {
-    this.config = config;
-  }
-
-  public YamlConfiguration getConfig() {
-    return this.config;
-  }
-
   public void addSpecialItem(SpecialItem item) {
     this.currentSpecials.add(item);
   }
 
   public void removeSpecialItem(SpecialItem item) {
     this.currentSpecials.remove(item);
-  }
-
-  public Location getMainLobby() {
-    return this.mainLobby;
-  }
-
-  public void setMainLobby(Location location) {
-    this.mainLobby = location;
   }
 
   public NewItemShop getNewItemShop(Player player) {
@@ -1651,10 +1561,6 @@ public class Game {
     }
 
     this.newItemShops.remove(player);
-  }
-
-  public List<Player> getFreePlayers() {
-    return this.freePlayers;
   }
 
   public List<Player> getFreePlayersClone() {
@@ -1672,22 +1578,6 @@ public class Game {
 
   public void setLobbyCountdown(GameLobbyCountdown glc) {
     this.glc = glc;
-  }
-
-  public void setRegionName(String name) {
-    this.regionName = name;
-  }
-
-  public int getLength() {
-    return this.length;
-  }
-
-  public void setLength(int length) {
-    this.length = length;
-  }
-
-  public void setAutobalance(boolean autobalance) {
-    this.autobalance = autobalance;
   }
 
   /*
