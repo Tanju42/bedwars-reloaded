@@ -331,7 +331,7 @@ public class GameManager {
 
   public Game getGameBySignLocation(Location location) {
     for (Game game : this.games) {
-      if (game.getSigns().containsKey(location)) {
+      if (game.getJoinSigns().containsKey(location)) {
         return game;
       }
     }

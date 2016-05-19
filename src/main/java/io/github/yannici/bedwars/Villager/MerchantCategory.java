@@ -174,7 +174,7 @@ public class MerchantCategory {
   }
 
   public static void openCategorySelection(Player p, Game g) {
-    List<MerchantCategory> cats = g.getOrderedItemShopCategories();
+    List<MerchantCategory> cats = g.getOrderedShopCategories();
 
     int nom = (cats.size() % 9 == 0) ? 9 : (cats.size() % 9);
     int size = (cats.size() + (9 - nom)) + 9;

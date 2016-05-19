@@ -59,7 +59,7 @@ import lombok.Data;
 public class Game {
 
   private String name = null;
-  private List<RessourceSpawner> resSpawner = null;
+  private List<RessourceSpawner> ressourceSpawners = null;
   private List<BukkitTask> runningTasks = null;
   private GameState state = null;
   private HashMap<String, Team> teams = null;
@@ -68,11 +68,11 @@ public class Game {
   private int minPlayers = 0;
   private Region region = null;
   private Location lobby = null;
-  private HashMap<Player, PlayerStorage> storages = null;
+  private HashMap<Player, PlayerStorage> playerStorages = null;
   private Scoreboard scoreboard = null;
-  private GameLobbyCountdown glc = null;
-  private HashMap<Material, MerchantCategory> itemshop = null;
-  private List<MerchantCategory> orderedItemshop = null;
+  private GameLobbyCountdown lobbyCountdown = null;
+  private HashMap<Material, MerchantCategory> shopCategories = null;
+  private List<MerchantCategory> orderedShopCategories = null;
   private GameCycle cycle = null;
   private Location mainLobby = null;
   private HashMap<Location, GameJoinSign> joinSigns = null;
@@ -92,19 +92,19 @@ public class Game {
 
   private Map<Player, PlayerSettings> playerSettings = null;
 
-  private List<SpecialItem> currentSpecials = null;
+  private List<SpecialItem> specialItems = null;
 
   private int time = 1000;
 
   private Map<Player, Player> playerDamages = null;
 
-  private Map<Player, RespawnProtectionRunnable> respawnProtected = null;
+  private Map<Player, RespawnProtectionRunnable> respawnProtections = null;
 
   private String regionName = null;
 
   // Itemshops
   private HashMap<Player, NewItemShop> newItemShops = null;
-  private List<Player> useOldItemShop = null;
+  private List<Player> oldItemShopPlayers = null;
 
   private YamlConfiguration config = null;
 
@@ -120,23 +120,23 @@ public class Game {
     this.runningTasks = new ArrayList<BukkitTask>();
 
     this.freePlayers = new ArrayList<Player>();
-    this.resSpawner = new ArrayList<RessourceSpawner>();
+    this.ressourceSpawners = new ArrayList<RessourceSpawner>();
     this.teams = new HashMap<String, Team>();
     this.playingTeams = new ArrayList<Team>();
 
-    this.storages = new HashMap<Player, PlayerStorage>();
+    this.playerStorages = new HashMap<Player, PlayerStorage>();
     this.state = GameState.STOPPED;
     this.scoreboard = Main.getInstance().getScoreboardManager().getNewScoreboard();
 
-    this.glc = null;
+    this.lobbyCountdown = null;
     this.joinSigns = new HashMap<Location, GameJoinSign>();
     this.timeLeft = Main.getInstance().getMaxLength();
     this.isOver = false;
     this.newItemShops = new HashMap<Player, NewItemShop>();
-    this.useOldItemShop = new ArrayList<Player>();
-    this.respawnProtected = new HashMap<Player, RespawnProtectionRunnable>();
+    this.oldItemShopPlayers = new ArrayList<Player>();
+    this.respawnProtections = new HashMap<Player, RespawnProtectionRunnable>();
     this.playerDamages = new HashMap<Player, Player>();
-    this.currentSpecials = new ArrayList<SpecialItem>();
+    this.specialItems = new ArrayList<SpecialItem>();
 
     this.record = Main.getInstance().getMaxLength();
     this.length = Main.getInstance().getMaxLength();
@@ -301,11 +301,11 @@ public class Game {
   }
 
   public void addRessourceSpawner(RessourceSpawner rs) {
-    this.resSpawner.add(rs);
+    this.ressourceSpawners.add(rs);
   }
 
   public List<RessourceSpawner> getRessourceSpawner() {
-    return this.resSpawner;
+    return this.ressourceSpawners;
   }
 
   public void setLoc(Location loc, String type) {
@@ -684,10 +684,10 @@ public class Game {
       if (rule == GameLobbyCountdownRule.PLAYERS_IN_GAME
           || rule == GameLobbyCountdownRule.ENOUGH_TEAMS_AND_PLAYERS) {
         if (rule.isRuleMet(this)) {
-          if (this.glc == null) {
-            this.glc = new GameLobbyCountdown(this);
-            this.glc.setRule(rule);
-            this.glc.runTaskTimer(Main.getInstance(), 20L, 20L);
+          if (this.lobbyCountdown == null) {
+            this.lobbyCountdown = new GameLobbyCountdown(this);
+            this.lobbyCountdown.setRule(rule);
+            this.lobbyCountdown.runTaskTimer(Main.getInstance(), 20L, 20L);
           }
         } else {
           int playersNeeded = this.getMinPlayers() - this.getPlayerAmount();
@@ -798,7 +798,7 @@ public class Game {
       Main.getInstance().getPlayerStatisticManager().unloadStatistic(p);
     }
 
-    PlayerStorage storage = this.storages.get(p);
+    PlayerStorage storage = this.playerStorages.get(p);
     storage.clean();
     storage.restore();
 
@@ -823,13 +823,13 @@ public class Game {
     }
 
     this.updateSigns();
-    this.storages.remove(p);
+    this.playerStorages.remove(p);
     return true;
   }
 
   public PlayerStorage addPlayerStorage(Player p) {
     PlayerStorage storage = new PlayerStorage(p);
-    this.storages.put(p, storage);
+    this.playerStorages.put(p, storage);
 
     return storage;
   }
@@ -1039,19 +1039,19 @@ public class Game {
   }
 
   public void loadItemShopCategories() {
-    this.itemshop = MerchantCategory.loadCategories(Main.getInstance().getShopConfig());
-    this.orderedItemshop = this.loadOrderedItemShopCategories();
+    this.shopCategories = MerchantCategory.loadCategories(Main.getInstance().getShopConfig());
+    this.orderedShopCategories = this.loadOrderedItemShopCategories();
   }
 
   public NewItemShop openNewItemShop(Player player) {
-    NewItemShop newShop = new NewItemShop(this.orderedItemshop);
+    NewItemShop newShop = new NewItemShop(this.orderedShopCategories);
     this.newItemShops.put(player, newShop);
 
     return newShop;
   }
 
   private List<MerchantCategory> loadOrderedItemShopCategories() {
-    List<MerchantCategory> list = new ArrayList<MerchantCategory>(this.itemshop.values());
+    List<MerchantCategory> list = new ArrayList<MerchantCategory>(this.shopCategories.values());
     Collections.sort(list, new MerchantCategoryComparator());
     return list;
   }
@@ -1311,11 +1311,11 @@ public class Game {
   }
 
   public boolean isProtected(Player player) {
-    return (this.respawnProtected.containsKey(player) && this.getState() == GameState.RUNNING);
+    return (this.respawnProtections.containsKey(player) && this.getState() == GameState.RUNNING);
   }
 
   public void clearProtections() {
-    for (RespawnProtectionRunnable protection : this.respawnProtected.values()) {
+    for (RespawnProtectionRunnable protection : this.respawnProtections.values()) {
       try {
         protection.cancel();
       } catch (Exception ex) {
@@ -1323,7 +1323,7 @@ public class Game {
       }
     }
 
-    this.respawnProtected.clear();
+    this.respawnProtections.clear();
   }
 
   public void removeTeam(Team team) {
@@ -1347,10 +1347,6 @@ public class Game {
    * GETTER / SETTER
    */
 
-  public List<SpecialItem> getSpecialItems() {
-    return this.currentSpecials;
-  }
-
   public Player getPlayerDamager(Player p) {
     return this.playerDamages.get(p);
   }
@@ -1361,7 +1357,7 @@ public class Game {
   }
 
   public void removeProtection(Player player) {
-    RespawnProtectionRunnable rpr = this.respawnProtected.get(player);
+    RespawnProtectionRunnable rpr = this.getRespawnProtections().get(player);
     if (rpr == null) {
       return;
     }
@@ -1372,63 +1368,43 @@ public class Game {
       // isn't running, ignore
     }
 
-    this.respawnProtected.remove(player);
+    this.getRespawnProtections().remove(player);
   }
 
   public RespawnProtectionRunnable addProtection(Player player) {
     RespawnProtectionRunnable rpr =
         new RespawnProtectionRunnable(this, player, Main.getInstance().getRespawnProtectionTime());
-    this.respawnProtected.put(player, rpr);
+    this.getRespawnProtections().put(player, rpr);
 
     return rpr;
   }
 
   public void addRecordHolder(String holder) {
-    this.recordHolders.add(holder);
+    this.getRecordHolders().add(holder);
   }
 
   public Material getTargetMaterial() {
-    if (this.targetMaterial == null) {
+    if (this.getTargetMaterial() == null) {
       return Utils.getMaterialByConfig("game-block", Material.BED_BLOCK);
     }
 
-    return this.targetMaterial;
+    return this.getTargetMaterial();
   }
-
-  public List<MerchantCategory> getOrderedItemShopCategories() {
-    return this.orderedItemshop;
-  }
-
-  public void setGameLobbyCountdown(GameLobbyCountdown countdown) {
-    this.glc = countdown;
-  }
-
+  
   public boolean isUsingOldShop(Player player) {
-    return (this.useOldItemShop.contains(player));
+    return (this.getOldItemShopPlayers().contains(player));
   }
 
   public void notUseOldShop(Player player) {
-    this.useOldItemShop.remove(player);
+    this.getOldItemShopPlayers().remove(player);
   }
 
   public void useOldShop(Player player) {
-    this.useOldItemShop.add(player);
+    this.getOldItemShopPlayers().add(player);
   }
 
   public boolean isOverSet() {
     return this.isOver;
-  }
-
-  public HashMap<Location, GameJoinSign> getSigns() {
-    return this.joinSigns;
-  }
-
-  public void setItemShopCategories(HashMap<Material, MerchantCategory> cats) {
-    this.itemshop = cats;
-  }
-
-  public HashMap<Material, MerchantCategory> getItemShopCategories() {
-    return this.itemshop;
   }
 
   public Team getTeamByDyeColor(DyeColor dyeColor) {
@@ -1439,10 +1415,6 @@ public class Game {
     }
 
     return null;
-  }
-
-  public HashMap<String, Team> getTeams() {
-    return this.teams;
   }
 
   public ArrayList<Player> getTeamPlayers() {
@@ -1524,43 +1496,43 @@ public class Game {
   }
 
   public Team getTeam(String name) {
-    return this.teams.get(name);
+    return this.getTeams().get(name);
   }
 
   public void removePlayerSettings(Player player) {
-    this.playerSettings.remove(player);
+    this.getPlayerSettings().remove(player);
   }
 
   public void addPlayerSettings(Player player) {
-    this.playerSettings.put(player, new PlayerSettings(player));
+    this.getPlayerSettings().put(player, new PlayerSettings(player));
   }
 
   public PlayerSettings getPlayerSettings(Player player) {
-    return this.playerSettings.get(player);
+    return this.getPlayerSettings().get(player);
   }
 
   public PlayerStorage getPlayerStorage(Player p) {
-    return this.storages.get(p);
+    return this.getPlayerStorages().get(p);
   }
 
   public void addSpecialItem(SpecialItem item) {
-    this.currentSpecials.add(item);
+    this.getSpecialItems().add(item);
   }
 
   public void removeSpecialItem(SpecialItem item) {
-    this.currentSpecials.remove(item);
+    this.getSpecialItems().remove(item);
   }
 
   public NewItemShop getNewItemShop(Player player) {
-    return this.newItemShops.get(player);
+    return this.getNewItemShops().get(player);
   }
 
   public void removeNewItemShop(Player player) {
-    if (!this.newItemShops.containsKey(player)) {
+    if (!this.getNewItemShops().containsKey(player)) {
       return;
     }
 
-    this.newItemShops.remove(player);
+    this.getNewItemShops().remove(player);
   }
 
   public List<Player> getFreePlayersClone() {
@@ -1570,14 +1542,6 @@ public class Game {
     }
 
     return players;
-  }
-
-  public GameLobbyCountdown getLobbyCountdown() {
-    return this.glc;
-  }
-
-  public void setLobbyCountdown(GameLobbyCountdown glc) {
-    this.glc = glc;
   }
 
   /*
@@ -1674,7 +1638,7 @@ public class Game {
   }
 
   private void cleanUsersInventory() {
-    for (PlayerStorage storage : this.storages.values()) {
+    for (PlayerStorage storage : this.playerStorages.values()) {
       storage.clean();
     }
   }
@@ -1717,7 +1681,7 @@ public class Game {
 
     yml.set("autobalance", this.autobalance);
 
-    yml.set("spawner", this.resSpawner);
+    yml.set("spawner", this.ressourceSpawners);
     yml.createSection("teams", this.teams);
 
     try {

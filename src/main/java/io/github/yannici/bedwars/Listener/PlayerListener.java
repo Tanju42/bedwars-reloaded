@@ -190,7 +190,7 @@ public class PlayerListener extends BaseListener {
     }
 
     BedwarsOpenShopEvent openShopEvent =
-        new BedwarsOpenShopEvent(game, player, game.getItemShopCategories(), iee.getRightClicked());
+        new BedwarsOpenShopEvent(game, player, game.getShopCategories(), iee.getRightClicked());
     Main.getInstance().getServer().getPluginManager().callEvent(openShopEvent);
 
     if (openShopEvent.isCancelled()) {
@@ -438,7 +438,7 @@ public class PlayerListener extends BaseListener {
           return;
         }
 
-        MerchantCategory cat = game.getItemShopCategories().get(clickedStack.getType());
+        MerchantCategory cat = game.getShopCategories().get(clickedStack.getType());
         if (cat == null) {
           return;
         }
