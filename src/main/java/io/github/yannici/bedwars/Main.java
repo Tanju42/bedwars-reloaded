@@ -60,7 +60,6 @@ import io.github.yannici.bedwars.Commands.StatsCommand;
 import io.github.yannici.bedwars.Commands.StopGameCommand;
 import io.github.yannici.bedwars.Database.DatabaseManager;
 import io.github.yannici.bedwars.Game.Game;
-import io.github.yannici.bedwars.Game.GameLobbyCountdownRule;
 import io.github.yannici.bedwars.Game.GameManager;
 import io.github.yannici.bedwars.Game.GameState;
 import io.github.yannici.bedwars.Game.RessourceSpawner;
@@ -572,17 +571,6 @@ public class Main extends JavaPlugin {
               ImmutableMap.of("package", "minecraft server", "class", classname))));
       return null;
     }
-  }
-
-  public GameLobbyCountdownRule getLobbyCountdownRule() {
-    int id = 0;
-    if (this.getConfig().contains("lobbycountdown-rule")) {
-      if (this.getConfig().isInt("lobbycountdown-rule")) {
-        id = this.getConfig().getInt("lobbycountdown-rule");
-      }
-    }
-
-    return GameLobbyCountdownRule.getById(id);
   }
 
   public boolean metricsEnabled() {

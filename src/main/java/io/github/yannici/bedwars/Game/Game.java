@@ -5,11 +5,13 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -217,23 +219,46 @@ public class Game {
       this.displayRecord(p);
     }
 
-    GameLobbyCountdownRule rule = Main.getInstance().getLobbyCountdownRule();
-    if (rule == GameLobbyCountdownRule.PLAYERS_IN_GAME
-        || rule == GameLobbyCountdownRule.ENOUGH_TEAMS_AND_PLAYERS) {
-      if (rule.isRuleMet(this)) {
-        if (this.lobbyCountdown == null) {
-          this.lobbyCountdown = new GameLobbyCountdown(this);
-          this.lobbyCountdown.setRule(rule);
-          this.lobbyCountdown.runTaskTimer(Main.getInstance(), 20L, 20L);
-        }
-      } else {
-        int playersNeeded = this.getMinPlayers() - this.getPlayerAmount();
-        this.broadcast(ChatColor.GREEN + Main._l("lobby.moreplayersneeded", "count",
-            ImmutableMap.of("count", String.valueOf(playersNeeded))));
 
+    if (isStartable()) {
+      if (this.lobbyCountdown == null) {
+        this.lobbyCountdown = new GameLobbyCountdown(this);
+        this.lobbyCountdown.runTaskTimer(Main.getInstance(), 20L, 20L);
       }
+    } else if (!this.hasEnoughPlayers()) {
+      int playersNeeded = this.getMinPlayers() - this.getPlayerAmount();
+      this.broadcast(ChatColor.GREEN + Main._l("lobby.moreplayersneeded", "count",
+          ImmutableMap.of("count", String.valueOf(playersNeeded))));
     }
 
+  }
+
+  public boolean isStartable() {
+    if (hasEnoughPlayers() && hasEnoughTeams()) {
+      return true;
+    }
+    return false;
+  }
+
+  public boolean hasEnoughPlayers() {
+    if (this.getPlayerAmount() >= this.getMinPlayers()) {
+      return true;
+    }
+    return false;
+  }
+
+  public boolean hasEnoughTeams() {
+    int teamsWithPlayers = 0;
+    for (Team team : this.getTeams().values()) {
+      if (team.getPlayers().size() > 0) {
+        teamsWithPlayers++;
+      }
+    }
+    if (teamsWithPlayers >= 2 || ((teamsWithPlayers == 0 && this.getFreePlayers().size() >= 2)
+        || (teamsWithPlayers == 1 && this.getFreePlayers().size() >= 1))) {
+      return true;
+    }
+    return false;
   }
 
   public void addPlayerSettings(Player player) {
@@ -670,8 +695,12 @@ public class Game {
   }
 
   private Team getLowestTeam() {
+    return getLowestTeam(this.getTeams().values());
+  }
+
+  private Team getLowestTeam(Collection<Team> teams) {
     Team lowest = null;
-    for (Team team : this.getTeams().values()) {
+    for (Team team : teams) {
       if (lowest == null) {
         lowest = team;
         continue;
@@ -1015,11 +1044,46 @@ public class Game {
   }
 
   public void moveFreePlayersToTeam() {
-    for (Player player : this.getFreePlayers()) {
-      Team lowest = this.getLowestTeam();
-      lowest.addPlayer(player);
+    Integer freePlayersCount = this.getFreePlayers().size();
+    Integer freeTeamSlotsCount = 0;
+    List<Team> teamsToFill = new ArrayList<Team>();
+    List<Team> teamsNotToFill = new ArrayList<Team>();
+
+    for (Team team : this.getTeams().values()) {
+      if (team.getPlayers().size() > 0 && team.getPlayers().size() < team.getMaxPlayers()) {
+        freeTeamSlotsCount = freeTeamSlotsCount + (team.getMaxPlayers() - team.getPlayers().size());
+        teamsToFill.add(team);
+      } else if (team.getPlayers().size() == 0) {
+        teamsNotToFill.add(team);
+      }
     }
 
+    if (teamsToFill.size() == 0 || teamsToFill.size() == 1) {
+      while (teamsToFill.size() < 2) {
+        Random randomGenerator = new Random();
+        int index = randomGenerator.nextInt(teamsNotToFill.size());
+        Team team = teamsNotToFill.get(index);
+        teamsToFill.add(team);
+        freeTeamSlotsCount = freeTeamSlotsCount + team.getMaxPlayers();
+        teamsNotToFill.remove(index);
+      }
+    }
+
+    if (freeTeamSlotsCount < freePlayersCount) {
+      while (freeTeamSlotsCount < freePlayersCount) {
+        Random randomGenerator = new Random();
+        int index = randomGenerator.nextInt(teamsNotToFill.size());
+        Team team = teamsNotToFill.get(index);
+        teamsToFill.add(team);
+        freeTeamSlotsCount = freeTeamSlotsCount + team.getMaxPlayers();
+        teamsNotToFill.remove(index);
+      }
+    }
+
+    for (Player player : this.getFreePlayers()) {
+      Team lowest = this.getLowestTeam(teamsToFill);
+      lowest.addPlayer(player);
+    }
     this.freePlayers = new ArrayList<Player>();
     this.updateScoreboard();
   }
@@ -1153,16 +1217,10 @@ public class Game {
 
     this.updateScoreboard();
 
-    GameLobbyCountdownRule rule = Main.getInstance().getLobbyCountdownRule();
-    if (rule == GameLobbyCountdownRule.TEAMS_HAVE_PLAYERS
-        || rule == GameLobbyCountdownRule.ENOUGH_TEAMS_AND_PLAYERS) {
-      if (rule.isRuleMet(this)) {
-        if (this.getLobbyCountdown() == null) {
-          GameLobbyCountdown lobbyCountdown = new GameLobbyCountdown(this);
-          lobbyCountdown.setRule(rule);
-          lobbyCountdown.runTaskTimer(Main.getInstance(), 20L, 20L);
-          this.setLobbyCountdown(lobbyCountdown);
-        }
+    if (isStartable()) {
+      if (this.lobbyCountdown == null) {
+        this.lobbyCountdown = new GameLobbyCountdown(this);
+        this.lobbyCountdown.runTaskTimer(Main.getInstance(), 20L, 20L);
       }
     }
 
@@ -1557,8 +1615,8 @@ public class Game {
   }
 
   public GameState getState() {
-    //Main.getInstance().getServer().getConsoleSender()
-    //    .sendMessage("Game state is: " + state.toString());
+    // Main.getInstance().getServer().getConsoleSender()
+    // .sendMessage("Game state is: " + state.toString());
     return this.state;
   }
 
