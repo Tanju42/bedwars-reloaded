@@ -1049,41 +1049,46 @@ public class Game {
     List<Team> teamsToFill = new ArrayList<Team>();
     List<Team> teamsNotToFill = new ArrayList<Team>();
 
-    for (Team team : this.getTeams().values()) {
-      if (team.getPlayers().size() > 0 && team.getPlayers().size() < team.getMaxPlayers()) {
-        freeTeamSlotsCount = freeTeamSlotsCount + (team.getMaxPlayers() - team.getPlayers().size());
-        teamsToFill.add(team);
-      } else if (team.getPlayers().size() == 0) {
-        teamsNotToFill.add(team);
+    if (freePlayersCount > 0) {
+
+      for (Team team : this.getTeams().values()) {
+        if (team.getPlayers().size() > 0 && team.getPlayers().size() < team.getMaxPlayers()) {
+          freeTeamSlotsCount =
+              freeTeamSlotsCount + (team.getMaxPlayers() - team.getPlayers().size());
+          teamsToFill.add(team);
+        } else if (team.getPlayers().size() == 0) {
+          teamsNotToFill.add(team);
+        }
+      }
+
+      if (teamsNotToFill.size() != 0 && (teamsToFill.size() == 0 || teamsToFill.size() == 1)) {
+        while (teamsToFill.size() < 2) {
+          Random randomGenerator = new Random();
+          int index = randomGenerator.nextInt(teamsNotToFill.size());
+          Team team = teamsNotToFill.get(index);
+          teamsToFill.add(team);
+          freeTeamSlotsCount = freeTeamSlotsCount + team.getMaxPlayers();
+          teamsNotToFill.remove(index);
+        }
+      }
+
+      if (freeTeamSlotsCount < freePlayersCount) {
+        while (freeTeamSlotsCount < freePlayersCount) {
+          Random randomGenerator = new Random();
+          int index = randomGenerator.nextInt(teamsNotToFill.size());
+          Team team = teamsNotToFill.get(index);
+          teamsToFill.add(team);
+          freeTeamSlotsCount = freeTeamSlotsCount + team.getMaxPlayers();
+          teamsNotToFill.remove(index);
+        }
+      }
+
+      for (Player player : this.getFreePlayers()) {
+        Team lowest = this.getLowestTeam(teamsToFill);
+        lowest.addPlayer(player);
       }
     }
 
-    if (teamsToFill.size() == 0 || teamsToFill.size() == 1) {
-      while (teamsToFill.size() < 2) {
-        Random randomGenerator = new Random();
-        int index = randomGenerator.nextInt(teamsNotToFill.size());
-        Team team = teamsNotToFill.get(index);
-        teamsToFill.add(team);
-        freeTeamSlotsCount = freeTeamSlotsCount + team.getMaxPlayers();
-        teamsNotToFill.remove(index);
-      }
-    }
-
-    if (freeTeamSlotsCount < freePlayersCount) {
-      while (freeTeamSlotsCount < freePlayersCount) {
-        Random randomGenerator = new Random();
-        int index = randomGenerator.nextInt(teamsNotToFill.size());
-        Team team = teamsNotToFill.get(index);
-        teamsToFill.add(team);
-        freeTeamSlotsCount = freeTeamSlotsCount + team.getMaxPlayers();
-        teamsNotToFill.remove(index);
-      }
-    }
-
-    for (Player player : this.getFreePlayers()) {
-      Team lowest = this.getLowestTeam(teamsToFill);
-      lowest.addPlayer(player);
-    }
     this.freePlayers = new ArrayList<Player>();
     this.updateScoreboard();
   }
