@@ -196,7 +196,7 @@ public class ConfigUpdater {
     Main.getInstance().getConfig().addDefault("specials.tntsheep.explosion-factor", 1.0);
     Main.getInstance().getConfig().addDefault("bungeecord.full-restart", true);
     Main.getInstance().getConfig().addDefault("lobbytime-full", 15);
-    Main.getInstance().getConfig().addDefault("bungeecord.endgame-in-lobby", true);
+    Main.getInstance().getConfig().addDefault("endgame-in-lobby", true);
     // </1.2.8>
 
     // <1.3.0>
@@ -219,6 +219,10 @@ public class ConfigUpdater {
 
     // <1.3.2>
     Main.getInstance().getConfig().addDefault("statistics.player-leave-kills", false);
+    if (Main.getInstance().getConfig().get("bungeecord.endgame-in-lobby") != null) {
+      Main.getInstance().getConfig().set("endgame-in-lobby",
+          Main.getInstance().getConfig().getBoolean("bungeecord.endgame-in-lobby"));
+    }
     // </1.3.2>
   }
 

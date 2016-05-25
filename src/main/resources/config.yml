@@ -161,7 +161,7 @@ store-game-records-holder: true
 # The sound which should be played when a bed will be destroyed
 # Which sound are available you can find here: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Sound.html
 # (in the Enum Constant Summery)
-bed-sound: ENDERDRAGON_GROWL
+bed-sound: ENTITY_ENDERDRAGON_GROWL
 
 # Player drops
 # type: boolean
@@ -176,9 +176,12 @@ place-in-liquid: true
 
 # Breakable blocks
 # type: list<int> or list<string>
-# Defines the block types which are allowed to break
+# Defines the block types which are allowed to break (or not
+# if used as blacklist)
 breakable-blocks:
-    - none
+  use-as-blacklist: false
+  list:
+  - none
 
 # Join team with entity config
 jointeam-entity:
@@ -361,15 +364,6 @@ explodes:
     # on false, exploded blocks won't drop anything
     drop-blocking: false
 
-# Countdown start rule
-# Type: int
-# Countdown start options:
-# 0 = If all teams got min. 1 player, the game start countdown starts
-# 1 = If min. X (addgame parameter) players joined the game, game countdown starts
-# 2 = If min. X (addgame parameter) players joined the game and more than 1 team got players 
-#     (or players without team are enough to fill teams without players), game countdown starts
-lobbycountdown-rule: 2
-
 # Friendly Fire
 # Type: boolean (true or false)
 # Sets if friendlyfire is enabled (damage team mates)
@@ -388,10 +382,11 @@ friendlybreak: true
 gameoverdelay: 10
 
 # Chat to all prefix
-# type: char
-# The prefix character which indicates to chat
+# type: List
+# The prefix character(s) that indicate(s) to chat
 # to all ingame players (not only team)
-chat-to-all-prefix: "@"
+chat-to-all-prefix:
+- '@'
 
 # Seperate game chat
 # type: boolean
@@ -560,11 +555,6 @@ bungeecord:
   # The name of the hub/main server of the bungeecord server-farm. This will be
   # the server where the player will be teleported when they leave.
     hubserver: hub
-    
-  # Endgame Lobby
-  # type: boolean
-  # If true, it sends players to your lobby during the endgame before getting kicked.
-    endgame-in-lobby: true
     
   # Full server restart
   # Type: boolean
@@ -925,3 +915,27 @@ player-settings:
     # Only one full stack when doing a shift click to buy items.
     # Player can change that in shop, this is just a default
     one-stack-on-shift: false
+
+# Overwrite Display Names
+# Type: Boolean
+# If the display name should be overwritten
+# to better indicate the player's team.
+overwrite-display-names: true
+
+# Lobbytime Full
+# Type: Integer
+# Decreases lobby countdown down to this value
+# as soon as max-players for game is reached.
+lobbytime-full: 20
+
+# Hearts in Halfs
+# Type: Boolean
+# If players' remaining health should be calculated
+# as half hearts.
+hearts-in-halfs: true
+
+# Endgame in Lobby
+# Type: Boolean
+# If players should be teleported to the waiting
+# lobby for the endgame.
+endgame-in-lobby: true
