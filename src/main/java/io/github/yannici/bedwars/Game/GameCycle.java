@@ -143,10 +143,9 @@ public abstract class GameCycle {
       this.getGame().setRecord(playTime);
       this.getGame().saveRecord();
 
-      this.getGame()
-          .broadcast(Main._l("ingame.newrecord",
-              ImmutableMap.of("record", this.getGame().getFormattedRecord(), "team",
-                  winner.getChatColor() + winner.getDisplayName())));
+      this.getGame().broadcast(
+          Main._l("ingame.newrecord", ImmutableMap.of("record", this.getGame().getFormattedRecord(),
+              "team", winner.getChatColor() + winner.getDisplayName())));
       return true;
     }
 
@@ -300,7 +299,7 @@ public abstract class GameCycle {
       }
     } else {
       if (this.getGame().getTeamPlayers().size() == 0
-          || this.getGame().getState() == GameState.ENDGAME) {
+          && this.getGame().getState() == GameState.RUNNING) {
         this.runGameOver(null);
       }
     }
