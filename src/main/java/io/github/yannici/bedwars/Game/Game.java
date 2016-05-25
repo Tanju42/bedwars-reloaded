@@ -174,32 +174,34 @@ public class Game {
     storage.store();
     storage.clean();
 
-    new BukkitRunnable() {
+    if (Main.getInstance().isBungee()) {
+      new BukkitRunnable() {
 
-      @Override
-      public void run() {
-        Game.this.setPlayerGameMode(p);
-        Game.this.setPlayerVisibility(p);
+        @Override
+        public void run() {
+          for (Player playerInGame : Game.this.getPlayers()) {
+            playerInGame.hidePlayer(p);
+            p.hidePlayer(playerInGame);
+          }
+
+          Game.this.setPlayerGameMode(p);
+          Game.this.setPlayerVisibility(p);
+        }
+
+      }.runTaskLater(Main.getInstance(), 2L);
+    } else {
+      for (Player playerInGame : Game.this.getPlayers()) {
+        playerInGame.hidePlayer(p);
+        p.hidePlayer(playerInGame);
       }
 
-    }.runTaskLater(Main.getInstance(), 2L);
+      this.setPlayerGameMode(p);
+      this.setPlayerVisibility(p);
 
-    if (!Main.getInstance().isBungee()) {
       final Location location = this.getPlayerTeleportLocation(p);
       if (!p.getLocation().equals(location)) {
         this.getPlayerSettings(p).setTeleporting(true);
-        if (Main.getInstance().isBungee()) {
-          new BukkitRunnable() {
-
-            @Override
-            public void run() {
-              p.teleport(location);
-            }
-
-          }.runTaskLater(Main.getInstance(), 3L);
-        } else {
-          p.teleport(location);
-        }
+        p.teleport(location);
       }
     }
 
@@ -296,7 +298,7 @@ public class Game {
     this.getSpecialItems().add(item);
   }
 
-  public void addSpectator(Player player) {
+  public void addSpectator(Player player, Boolean serverJoin) {
     final Player p = player;
 
     if (!this.freePlayers.contains(player)) {
@@ -312,31 +314,48 @@ public class Game {
       storage.clean();
     }
 
-    new BukkitRunnable() {
+    if (Main.getInstance().isBungee() && serverJoin) {
+      new BukkitRunnable() {
 
-      @Override
-      public void run() {
-        Game.this.setPlayerGameMode(p);
-        Game.this.setPlayerVisibility(p);
-      }
-
-    }.runTaskLater(Main.getInstance(), 2L);
-
-    final Location location = this.getPlayerTeleportLocation(p);
-
-    if (!p.getLocation().getWorld().equals(location.getWorld())) {
-      this.getPlayerSettings(p).setTeleporting(true);
-      if (Main.getInstance().isBungee()) {
-        new BukkitRunnable() {
-
-          @Override
-          public void run() {
-            p.teleport(location);
+        @Override
+        public void run() {
+          for (Player playerInGame : Game.this.getPlayers()) {
+            playerInGame.hidePlayer(p);
+            p.hidePlayer(playerInGame);
           }
 
-        }.runTaskLater(Main.getInstance(), 3L);
+          Game.this.setPlayerGameMode(p);
+          Game.this.setPlayerVisibility(p);
+        }
 
-      } else {
+      }.runTaskLater(Main.getInstance(), 10L);
+
+      new BukkitRunnable() {
+
+        @Override
+        public void run() {
+          Location location = Game.this.getPlayerTeleportLocation(p);
+          if (!p.getLocation().getWorld().equals(location.getWorld())) {
+            Game.this.getPlayerSettings(p).setTeleporting(true);
+            p.teleport(location);
+          }
+        }
+
+      }.runTaskLater(Main.getInstance(), 15L);
+
+
+    } else {
+      for (Player playerInGame : Game.this.getPlayers()) {
+        playerInGame.hidePlayer(p);
+        p.hidePlayer(playerInGame);
+      }
+
+      this.setPlayerGameMode(p);
+      this.setPlayerVisibility(p);
+
+      Location location = this.getPlayerTeleportLocation(p);
+      if (!p.getLocation().getWorld().equals(location.getWorld())) {
+        this.getPlayerSettings(p).setTeleporting(true);
         p.teleport(location);
       }
     }
@@ -1142,8 +1161,9 @@ public class Game {
     player.openInventory(compass);
   }
 
-  public boolean playerJoins(final Player p) {
+  public boolean playerJoins(final Player p, Boolean serverJoin) {
 
+    Main.getInstance().getServer().getConsoleSender().sendMessage(p.getName() + " joined!");
     if ((this.getState() == GameState.RUNNING && !Main.getInstance().spectationEnabled())
         || (this.getState() == GameState.ENDGAME) || (this.getState() == GameState.STOPPING)
         || (this.getState() == GameState.STOPPED)) {
@@ -1176,22 +1196,14 @@ public class Game {
 
     this.addPlayerSettings(p);
 
-    new BukkitRunnable() {
-
-      @Override
-      public void run() {
-        for (Player playerInGame : Game.this.getPlayers()) {
-          playerInGame.hidePlayer(p);
-          p.hidePlayer(playerInGame);
-        }
-      }
-
-    }.runTaskLater(Main.getInstance(), 1L);
-
     if (this.state == GameState.WAITING) {
+      Main.getInstance().getServer().getConsoleSender()
+          .sendMessage(p.getName() + " should be player.");
       this.addPlayer(p);
     } else {
-      this.addSpectator(p);
+      Main.getInstance().getServer().getConsoleSender()
+          .sendMessage(p.getName() + " should be spectator.");
+      this.addSpectator(p, serverJoin);
       this.displayMapInfo(p);
     }
 
@@ -1555,6 +1567,8 @@ public class Game {
   }
 
   public void setPlayerGameMode(Player player) {
+    Main.getInstance().getServer().getConsoleSender()
+        .sendMessage(player.getName() + " gamemode: " + String.valueOf(this.isSpectator(player)));
     if (this.isSpectator(player) && !(this.getState() == GameState.ENDGAME
         && Main.getInstance().getBooleanConfig("endgame-in-lobby", true))) {
 
@@ -1583,20 +1597,13 @@ public class Game {
     if (this.state == GameState.RUNNING || !(this.getState() == GameState.ENDGAME
         && Main.getInstance().getBooleanConfig("endgame-in-lobby", true))) {
       if (this.isSpectator(player)) {
-        if (player.getGameMode().equals(GameMode.SURVIVAL)) {
-          for (Player playerInGame : players) {
-            playerInGame.hidePlayer(player);
-            player.showPlayer(playerInGame);
-          }
-        } else {
-          for (Player teamPlayer : this.getTeamPlayers()) {
-            teamPlayer.hidePlayer(player);
-            player.showPlayer(teamPlayer);
-          }
-          for (Player freePlayer : this.getFreePlayers()) {
-            freePlayer.showPlayer(player);
-            player.showPlayer(freePlayer);
-          }
+        for (Player teamPlayer : this.getTeamPlayers()) {
+          teamPlayer.hidePlayer(player);
+          player.showPlayer(teamPlayer);
+        }
+        for (Player freePlayer : this.getFreePlayers()) {
+          freePlayer.showPlayer(player);
+          player.showPlayer(freePlayer);
         }
       } else {
         for (Player playerInGame : players) {
