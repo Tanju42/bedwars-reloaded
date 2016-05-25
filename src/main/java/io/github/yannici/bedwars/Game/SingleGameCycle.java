@@ -205,25 +205,27 @@ public class SingleGameCycle extends GameCycle {
         }
       }
 
-      new BukkitRunnable() {
-        @Override
-        public void run() {
-          for (Player player : players) {
-            game.setPlayerGameMode(player);
-            game.setPlayerVisibility(player);
+      if (task.getCounter() == task.getStartCount()) {
+        new BukkitRunnable() {
+          @Override
+          public void run() {
+            for (Player player : players) {
+              game.setPlayerGameMode(player);
+              game.setPlayerVisibility(player);
 
-            if (!player.getInventory().contains(Material.SLIME_BALL)) {
-              // Leave Game (Slimeball)
-              ItemStack leaveGame = new ItemStack(Material.SLIME_BALL, 1);
-              ItemMeta im = leaveGame.getItemMeta();
-              im.setDisplayName(Main._l("lobby.leavegame"));
-              leaveGame.setItemMeta(im);
-              player.getInventory().setItem(8, leaveGame);
-              player.updateInventory();
+              if (!player.getInventory().contains(Material.SLIME_BALL)) {
+                // Leave Game (Slimeball)
+                ItemStack leaveGame = new ItemStack(Material.SLIME_BALL, 1);
+                ItemMeta im = leaveGame.getItemMeta();
+                im.setDisplayName(Main._l("lobby.leavegame"));
+                leaveGame.setItemMeta(im);
+                player.getInventory().setItem(8, leaveGame);
+                player.updateInventory();
+              }
             }
           }
-        }
-      }.runTaskLater(Main.getInstance(), 20L);
+        }.runTaskLater(Main.getInstance(), 20L);
+      }
     }
 
     if (task.getCounter() == task.getStartCount() && task.getWinner() != null) {
