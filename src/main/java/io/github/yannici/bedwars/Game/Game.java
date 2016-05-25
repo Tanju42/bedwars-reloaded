@@ -1046,8 +1046,10 @@ public class Game {
   public void moveFreePlayersToTeam() {
     Integer freePlayersCount = this.getFreePlayers().size();
     Integer freeTeamSlotsCount = 0;
+    Integer teamsCount = 0;
     List<Team> teamsToFill = new ArrayList<Team>();
-    List<Team> teamsNotToFill = new ArrayList<Team>();
+    List<Team> teamsAvailableToFill = new ArrayList<Team>();
+    List<Team> teamsFull = new ArrayList<Team>();
 
     if (freePlayersCount > 0) {
 
@@ -1056,30 +1058,35 @@ public class Game {
           freeTeamSlotsCount =
               freeTeamSlotsCount + (team.getMaxPlayers() - team.getPlayers().size());
           teamsToFill.add(team);
+          teamsCount++;
         } else if (team.getPlayers().size() == 0) {
-          teamsNotToFill.add(team);
+          teamsAvailableToFill.add(team);
+        } else if (team.getPlayers().size() == team.getMaxPlayers()) {
+          teamsFull.add(team);
+          teamsCount++;
         }
       }
 
-      if (teamsNotToFill.size() != 0 && (teamsToFill.size() == 0 || teamsToFill.size() == 1)) {
-        while (teamsToFill.size() < 2) {
+      if (teamsAvailableToFill.size() > 0 && teamsCount <= 1) {
+        while (teamsCount < 2) {
           Random randomGenerator = new Random();
-          int index = randomGenerator.nextInt(teamsNotToFill.size());
-          Team team = teamsNotToFill.get(index);
+          int index = randomGenerator.nextInt(teamsAvailableToFill.size());
+          Team team = teamsAvailableToFill.get(index);
           teamsToFill.add(team);
           freeTeamSlotsCount = freeTeamSlotsCount + team.getMaxPlayers();
-          teamsNotToFill.remove(index);
+          teamsAvailableToFill.remove(index);
+          teamsCount++;
         }
       }
 
       if (freeTeamSlotsCount < freePlayersCount) {
         while (freeTeamSlotsCount < freePlayersCount) {
           Random randomGenerator = new Random();
-          int index = randomGenerator.nextInt(teamsNotToFill.size());
-          Team team = teamsNotToFill.get(index);
+          int index = randomGenerator.nextInt(teamsAvailableToFill.size());
+          Team team = teamsAvailableToFill.get(index);
           teamsToFill.add(team);
           freeTeamSlotsCount = freeTeamSlotsCount + team.getMaxPlayers();
-          teamsNotToFill.remove(index);
+          teamsAvailableToFill.remove(index);
         }
       }
 
