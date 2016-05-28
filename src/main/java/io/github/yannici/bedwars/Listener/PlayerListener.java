@@ -89,7 +89,7 @@ public class PlayerListener extends BaseListener {
         return;
       }
 
-      if (!firstGame.playerJoins(player)) {
+      if (!firstGame.playerJoins(player, player.hasPlayedBefore())) {
         new BukkitRunnable() {
 
           @Override
@@ -806,7 +806,7 @@ public class PlayerListener extends BaseListener {
         return;
       }
 
-      if (game.playerJoins(player)) {
+      if (game.playerJoins(player, true)) {
         player.sendMessage(ChatWriter.pluginMessage(ChatColor.GREEN + Main._l("success.joined")));
       }
       return;

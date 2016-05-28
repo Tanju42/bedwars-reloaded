@@ -67,7 +67,7 @@ public class JoinGameCommand extends BaseCommand {
       return false;
     }
 
-    if (game.playerJoins(player)) {
+    if (game.playerJoins(player, true)) {
       sender.sendMessage(ChatWriter.pluginMessage(ChatColor.GREEN + Main._l("success.joined")));
     }
     return true;
